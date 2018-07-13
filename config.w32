@@ -1,0 +1,7 @@
+ARG_ENABLE('sentry', 'sentry support', 'no');
+
+if (PHP_SENTRY != 'no') {
+	AC_DEFINE('HAVE_SENTRY', 1, 'sentry support enabled');
+
+	EXTENSION('sentry', 'sentry.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+}
