@@ -12,7 +12,7 @@
  */
 PHP_FUNCTION(sentry_test1)
 {
-	ZEND_PARSE_PARAMETERS_NONE();
+	zend_parse_parameters_none();
 
 	php_printf("The extension %s is loaded and working!\r\n", "sentry");
 }
