@@ -19,6 +19,10 @@
 ZEND_DECLARE_MODULE_GLOBALS(sentry)
 
 
+PHP_INI_BEGIN()
+PHP_INI_ENTRY("sentry.debug", "0", PHP_INI_ALL, NULL)
+PHP_INI_END()
+
 /* {{{ string sentry_test2( [ string $var ] )
  */
 PHP_FUNCTION(sentry_enable_debug)
@@ -241,8 +245,20 @@ PHP_GINIT_FUNCTION(sentry)
 	sentry_globals->enabled	   		= 1;
 	sentry_globals->debug   = 0;
 
+}
 
+PHP_MINIT_FUNCTION(sentry)
+{
+    REGISTER_INI_ENTRIES();
 
+    return SUCCESS;
+}
+
+PHP_MSHUTDOWN_FUNCTION(sentry)
+{
+    UNREGISTER_INI_ENTRIES();
+
+    return SUCCESS;
 }
 
 /* }}} */
@@ -254,6 +270,8 @@ PHP_MINFO_FUNCTION(sentry)
 	php_info_print_table_start();
 	php_info_print_table_header(2, "sentry support", "enabled");
 	php_info_print_table_end();
+
+    DISPLAY_INI_ENTRIES();
 }
 /* }}} */
 
@@ -272,8 +290,8 @@ zend_module_entry sentry_module_entry = {
 	STANDARD_MODULE_HEADER,
 	"sentry",					/* Extension name */
 	sentry_functions,			/* zend_function_entry */
-	NULL,							/* PHP_MINIT - Module initialization */
-	NULL,							/* PHP_MSHUTDOWN - Module shutdown */
+	PHP_MINIT(sentry),							/* PHP_MINIT - Module initialization */
+	PHP_MSHUTDOWN(sentry),							/* PHP_MSHUTDOWN - Module shutdown */
 	PHP_RINIT(sentry),			/* PHP_RINIT - Request initialization */
 	NULL,							/* PHP_RSHUTDOWN - Request shutdown */
 	PHP_MINFO(sentry),			/* PHP_MINFO - Module info */

@@ -7,9 +7,9 @@ if (!extension_loaded('sentry')) {
 }
 ?>
 --FILE--
-<?php 
-var_dump(sentry_test2());
-var_dump(sentry_test2('PHP'));
+<?php
+ini_set('sentry.debug', true);
+echo HHH;
 ?>
 --EXPECT--
 string(11) "Hello World"
