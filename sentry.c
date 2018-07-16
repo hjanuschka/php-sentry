@@ -136,9 +136,9 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
 	/* Send to backend */
    	php_printf("SENTRY PHP-EXT Catched:\n");
    	php_printf("==============\n");
-	if(SENTRY_G(last_exception)) {
+
+	if(SENTRY_G(last_exception) && Z_TYPE_P(SENTRY_G(last_exception)) == IS_OBJECT) {
 		default_ce = Z_OBJCE_P(SENTRY_G(last_exception));
-		exception_ce =  Z_OBJCE_P(SENTRY_G(last_exception));
 		emsg =    zend_read_property(default_ce, SENTRY_G(last_exception), "message",    sizeof("message")-1,    0 TSRMLS_CC, &rv1);
 		php_printf("message: Unkown Exception %s catched!\n", Z_STRVAL_P(emsg));
 	} else {
@@ -151,12 +151,10 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
 
 
     HashTable *hash_arr = Z_ARRVAL(btrace);
-	if(SENTRY_G(last_exception)) {
+	if(SENTRY_G(last_exception) && Z_TYPE_P(SENTRY_G(last_exception)) == IS_OBJECT) {
 		default_ce = Z_OBJCE_P(SENTRY_G(last_exception));
-		exception_ce =  Z_OBJCE_P(SENTRY_G(last_exception));
 		trace =    zend_read_property(default_ce, SENTRY_G(last_exception), "trace",    sizeof("trace")-1,    0 TSRMLS_CC, &rv);
 		hash_arr = Z_ARRVAL_P(trace);
-
 	}
 	ZEND_HASH_FOREACH_VAL(hash_arr,  ele_value) {
 		zval * file, * lineo, *function, *class;
@@ -183,6 +181,7 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
 
 static void php_sentry_exception_hook(zval *exception TSRMLS_DC)
 {
+	if(!exception) return;
 	SENTRY_G(last_exception) = exception;
 }
 
@@ -236,6 +235,7 @@ PHP_RINIT_FUNCTION(sentry)
 PHP_GINIT_FUNCTION(sentry)
 {
 	sentry_globals->enabled	   		= 1;
+	sentry_globals->was_exception   = 0;
 
 
 
