@@ -18,15 +18,6 @@
 
 ZEND_DECLARE_MODULE_GLOBALS(sentry)
 
-/* {{{ void sentry_test1()
- */
-PHP_FUNCTION(sentry_test1)
-{
-	zend_parse_parameters_none();
-
-	php_printf("The extension %s is loaded and working!\r\n", "sentry");
-}
-/* }}} */
 
 /* {{{ string sentry_test2( [ string $var ] )
  */
@@ -122,81 +113,51 @@ PHP_FUNCTION(sentry_set_error_handler)
 /* event must be initialized with MAKE_STD_ZVAL or similar and array_init before sending here */
 void php_sentry_capture_error_ex(zval *event, int type, const char *error_filename, const uint error_lineno, zend_bool free_event, const char *format, va_list args TSRMLS_DC)
 {
-	zval **ppzval;
 	va_list args_cp;
 	int len;
 	char *buffer;
-	char uuid_str[200 + 1];
+	zend_class_entry *default_ce, *exception_ce;
+	zval btrace;
+	zval *emsg, rv1;
+	zval *trace, rv;
+    zval *ele_value = NULL;
+	int frame = 1;
 
 	TSRMLS_FETCH();
 
-
-
 	/* Capture backtrace */
-		zval btrace;
-// TODO: introduce a directive for the amount of stack frames returned instead of hard coded 1000?
-		zend_fetch_debug_backtrace(&btrace, 0, 0 ,1000);
-		add_assoc_zval(event, "backtrace", &btrace);
+	zend_fetch_debug_backtrace(&btrace, 0, 0 ,1000);
 
 	va_copy(args_cp, args);
 	len = vspprintf(&buffer, PG(log_errors_max_len), format, args_cp);
 	va_end(args_cp);
 
-	add_assoc_string(event,	"error_message", buffer);
-	add_assoc_string(event,	"filename",	(char *)error_filename);
 
-	add_assoc_long(event, "line_number", error_lineno);
-	add_assoc_long(event, "error_type", type);
-
-zend_long lkey;
-    zend_string *skey;
-    zval *val;
-
-		zend_class_entry *default_ce, *exception_ce;
 	/* Send to backend */
-    //SEND ERROR HERE
    	php_printf("SENTRY PHP-EXT Catched:\n");
    	php_printf("==============\n");
-		if(SENTRY_G(last_exception)) {
-
-		zval *emsg, rv1;
-
+	if(SENTRY_G(last_exception)) {
 		default_ce = Z_OBJCE_P(SENTRY_G(last_exception));
 		exception_ce =  Z_OBJCE_P(SENTRY_G(last_exception));
 		emsg =    zend_read_property(default_ce, SENTRY_G(last_exception), "message",    sizeof("message")-1,    0 TSRMLS_CC, &rv1);
-
-
-			php_printf("message: Unkown Exception %s catched!\n", Z_STRVAL_P(emsg));
-		} else {
-			php_printf("message: %s\n", buffer);
-		}
-
+		php_printf("message: Unkown Exception %s catched!\n", Z_STRVAL_P(emsg));
+	} else {
+		php_printf("message: %s\n", buffer);
+	}
 	php_printf("\tFrame(0):\n");
 	php_printf("\t\tfile: %s\n", error_filename);
 	php_printf("\t\tlineo: %d\n", error_lineno);
 	php_printf("\t\ttype: %d\n", type);
 
 
-	//TODO if global backtrace is available take this
     HashTable *hash_arr = Z_ARRVAL(btrace);
-
-
-
-
-
 	if(SENTRY_G(last_exception)) {
-		zval *trace, rv;
-
 		default_ce = Z_OBJCE_P(SENTRY_G(last_exception));
 		exception_ce =  Z_OBJCE_P(SENTRY_G(last_exception));
 		trace =    zend_read_property(default_ce, SENTRY_G(last_exception), "trace",    sizeof("trace")-1,    0 TSRMLS_CC, &rv);
 		hash_arr = Z_ARRVAL_P(trace);
 
 	}
-
-    zval *ele_value = NULL;
-
-	int frame = 1;
 	ZEND_HASH_FOREACH_VAL(hash_arr,  ele_value) {
 		zval * file, * lineo, *function, *class;
 		file = zend_hash_str_find(Z_ARRVAL_P(ele_value), "file", sizeof("file")-1);
@@ -214,53 +175,15 @@ zend_long lkey;
 
    	php_printf("/SENTRY PHP-EXT Catched:\n");
 
-	//(uuid_str, event, type, error_filename, error_lineno TSRMLS_CC);
 
 	if (free_event) {
 		zval_dtor(event);
-		//efree(event);
 	}
 }
 
 static void php_sentry_exception_hook(zval *exception TSRMLS_DC)
 {
-	//TODO keep track of exception - those are the unhandled ones
-    zend_class_entry *exception_ce;
-    zval *code_val;
-    zval **name_maps_data;
-    long code;
-    const char *exception_name;
-    uint exception_name_len = 0;
-	do {
-		if(!exception) {
-			break;
-		}
-		SENTRY_G(last_exception) = exception;
-		/*
-		zval *message, *file, *line,*trace, *xdebug_message_trace, *previous_exception, rv;
-
-		php_printf("### Sentry Unhandled Exception\n");
-		zend_class_entry *default_ce, *exception_ce;
-
-		default_ce = Z_OBJCE_P(exception);
-		exception_ce = Z_OBJCE_P(exception);
-
-        message = zend_read_property(default_ce, exception, "message", sizeof("message")-1, 0 TSRMLS_CC, &rv);
-	    file =    zend_read_property(default_ce, exception, "file",    sizeof("file")-1,    0 TSRMLS_CC, &rv);
-		line =    zend_read_property(default_ce, exception, "line",    sizeof("line")-1,    0 TSRMLS_CC, &rv);
-		trace =    zend_read_property(default_ce, exception, "trace",    sizeof("trace")-1,    0 TSRMLS_CC, &rv);
-		php_var_dump(trace, 0);
-		zval * ele_value;
-		ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(trace),  ele_value) {
-			php_var_dump(ele_value, 0);
-		}
-		ZEND_HASH_FOREACH_END();
-		*/
-
-
-
-
-	}while(0);
+	SENTRY_G(last_exception) = exception;
 }
 
 /* Wrapper that calls the original callback or our callback */
@@ -332,8 +255,6 @@ PHP_MINFO_FUNCTION(sentry)
 
 /* {{{ arginfo
  */
-ZEND_BEGIN_ARG_INFO(arginfo_sentry_test1, 0)
-ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_sentry_test2, 0)
 	ZEND_ARG_INFO(0, str)
@@ -343,7 +264,6 @@ ZEND_END_ARG_INFO()
 /* {{{ sentry_functions[]
  */
 static const zend_function_entry sentry_functions[] = {
-	PHP_FE(sentry_test1,		arginfo_sentry_test1)
 	PHP_FE(sentry_test2,		arginfo_sentry_test2)
 	PHP_FE_END
 };
