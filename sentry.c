@@ -21,20 +21,22 @@ ZEND_DECLARE_MODULE_GLOBALS(sentry)
 
 /* {{{ string sentry_test2( [ string $var ] )
  */
-PHP_FUNCTION(sentry_test2)
+PHP_FUNCTION(sentry_enable_debug)
 {
-	char *var = "World";
-	size_t var_len = sizeof("World") - 1;
-	zend_string *retval;
+	zend_bool value;
 
-	ZEND_PARSE_PARAMETERS_START(0, 1)
-		Z_PARAM_OPTIONAL
-		Z_PARAM_STRING(var, var_len)
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_BOOL(value)
 	ZEND_PARSE_PARAMETERS_END();
 
-	retval = strpprintf(0, "Hello %s", var);
+	if(value) {
+		SENTRY_G(debug) = 1;
+	} else {
+		SENTRY_G(debug) = 0;
+	}
 
-	RETURN_STR(retval);
+
+	RETURN_BOOL(value);
 }
 /* }}}*/
 
@@ -132,6 +134,7 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
 	len = vspprintf(&buffer, PG(log_errors_max_len), format, args_cp);
 	va_end(args_cp);
 
+if(SENTRY_G(debug) == 1) {
 
 	/* Send to backend */
    	php_printf("SENTRY PHP-EXT Catched:\n");
@@ -173,6 +176,7 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
 
    	php_printf("/SENTRY PHP-EXT Catched:\n");
 
+}
 
 	if (free_event) {
 		zval_dtor(event);
@@ -235,7 +239,7 @@ PHP_RINIT_FUNCTION(sentry)
 PHP_GINIT_FUNCTION(sentry)
 {
 	sentry_globals->enabled	   		= 1;
-	sentry_globals->was_exception   = 0;
+	sentry_globals->debug   = 0;
 
 
 
@@ -253,18 +257,11 @@ PHP_MINFO_FUNCTION(sentry)
 }
 /* }}} */
 
-/* {{{ arginfo
- */
-
-ZEND_BEGIN_ARG_INFO(arginfo_sentry_test2, 0)
-	ZEND_ARG_INFO(0, str)
-ZEND_END_ARG_INFO()
-/* }}} */
 
 /* {{{ sentry_functions[]
  */
 static const zend_function_entry sentry_functions[] = {
-	PHP_FE(sentry_test2,		arginfo_sentry_test2)
+	PHP_FE(sentry_enable_debug,		NULL)
 	PHP_FE_END
 };
 /* }}} */

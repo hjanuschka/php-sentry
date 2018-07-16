@@ -32,7 +32,7 @@ ZEND_BEGIN_MODULE_GLOBALS(sentry)
 
 	zval user_error_handler;	/* the current active user error handler */
 	zval * last_exception;
-	int was_exception;
+	int debug;
 
 	HashTable module_error_reporting;	/* hashtable containing error reporting levels for different storage modules */
 
