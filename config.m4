@@ -17,52 +17,64 @@ dnl Make sure that the comment is aligned:
 [  --enable-sentry          Enable sentry support], no)
 
 if test "$PHP_SENTRY" != "no"; then
-  dnl Write more examples of tests here...
 
-  dnl # get library FOO build options from pkg-config output
-  dnl AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
-  dnl AC_MSG_CHECKING(for libfoo)
-  dnl if test -x "$PKG_CONFIG" && $PKG_CONFIG --exists foo; then
-  dnl   if $PKG_CONFIG foo --atleast-version 1.2.3; then
-  dnl     LIBFOO_CFLAGS=\`$PKG_CONFIG foo --cflags\`
-  dnl     LIBFOO_LIBDIR=\`$PKG_CONFIG foo --libs\`
-  dnl     LIBFOO_VERSON=\`$PKG_CONFIG foo --modversion\`
-  dnl     AC_MSG_RESULT(from pkgconfig: version $LIBFOO_VERSON)
-  dnl   else
-  dnl     AC_MSG_ERROR(system libfoo is too old: version 1.2.3 required)
-  dnl   fi
-  dnl else
-  dnl   AC_MSG_ERROR(pkg-config not found)
-  dnl fi
-  dnl PHP_EVAL_LIBLINE($LIBFOO_LIBDIR, SENTRY_SHARED_LIBADD)
-  dnl PHP_EVAL_INCLINE($LIBFOO_CFLAGS)
+ 	PHP_ARG_WITH(curl, for cURL support, [  --with-curl[=DIR]		SOLR : libcurl install prefix])
 
-  dnl # --with-sentry -> check with-path
-  dnl SEARCH_PATH="/usr/local /usr"     # you might want to change this
-  dnl SEARCH_FOR="/include/sentry.h"  # you most likely want to change this
-  dnl if test -r $PHP_SENTRY/$SEARCH_FOR; then # path given as parameter
-  dnl   SENTRY_DIR=$PHP_SENTRY
-  dnl else # search default path list
-  dnl   AC_MSG_CHECKING([for sentry files in default path])
-  dnl   for i in $SEARCH_PATH ; do
-  dnl     if test -r $i/$SEARCH_FOR; then
-  dnl       SENTRY_DIR=$i
-  dnl       AC_MSG_RESULT(found in $i)
-  dnl     fi
-  dnl   done
-  dnl fi
-  dnl
-  dnl if test -z "$SENTRY_DIR"; then
-  dnl   AC_MSG_RESULT([not found])
-  dnl   AC_MSG_ERROR([Please reinstall the sentry distribution])
-  dnl fi
+		if test -r $PHP_CURL/include/curl/easy.h; then
+			CURL_DIR=$PHP_CURL
+			AC_MSG_RESULT(curl headers found in $PHP_CURL)
+		else
+			AC_MSG_CHECKING(for cURL in default path)
+			for i in /usr/local /usr; do
+	  		if test -r $i/include/curl/easy.h; then
+					CURL_DIR=$i
+					AC_MSG_RESULT(found in $i)
+					break
+	  		fi
+			done
+		fi
 
-  dnl # --with-sentry -> add include path
-  dnl PHP_ADD_INCLUDE($SENTRY_DIR/include)
+	if test -z "$CURL_DIR"; then
+		AC_MSG_RESULT(not found)
+		AC_MSG_ERROR([Please reinstall the libcurl distribution - easy.h should be in <curl-dir>/include/curl/])
+	fi
 
-  dnl # --with-sentry -> check for lib and symbol presence
-  dnl LIBNAME=SENTRY # you may want to change this
-  dnl LIBSYMBOL=SENTRY # you most likely want to change this 
+CURL_CONFIG="curl-config"
+AC_MSG_CHECKING(for cURL 7.15.0 or greater)
+
+if ${CURL_DIR}/bin/curl-config --libs > /dev/null 2>&1; then
+	CURL_CONFIG=${CURL_DIR}/bin/curl-config
+else
+	if ${CURL_DIR}/curl-config --libs > /dev/null 2>&1; then
+  		CURL_CONFIG=${CURL_DIR}/curl-config
+	fi
+fi
+
+curl_version_full=`$CURL_CONFIG --version`
+curl_version=`echo ${curl_version_full} | sed -e 's/libcurl //' | $AWK 'BEGIN { FS = "."; } { printf "%d", ($1 * 1000 + $2) * 1000 + $3;}'`
+
+if test "$curl_version" -ge 7015000; then
+	AC_MSG_RESULT($curl_version_full)
+	CURL_LIBS=`$CURL_CONFIG --libs`
+else
+	AC_MSG_ERROR([Curl is required for sentry extension])
+fi
+
+    PHP_CHECK_LIBRARY(curl,curl_easy_perform,
+    [
+        AC_DEFINE(HAVE_CURL,1,[ ])
+    ],[
+        AC_MSG_ERROR(There is something wrong. Please check config.log for more information.)
+    ],[
+        $CURL_LIBS -L$CURL_DIR/$PHP_LIBDIR
+    ])
+
+    PHP_ADD_INCLUDE($CURL_DIR/include)
+    PHP_EVAL_LIBLINE($CURL_LIBS, SENTRY_SHARED_LIBADD)
+    PHP_ADD_LIBRARY_WITH_PATH(curl, $CURL_DIR/lib, SENTRY_SHARED_LIBADD)
+		PHP_SUBST(SENTRY_SHARED_LIBADD)
+
+
 
   dnl PHP_CHECK_LIBRARY($LIBNAME,$LIBSYMBOL,
   dnl [

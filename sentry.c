@@ -215,11 +215,11 @@ static void php_sentry_override_error_handling(TSRMLS_D)
 	zend_error_cb          = php_sentry_capture_error;
 	zend_throw_exception_hook = php_sentry_exception_hook;
 
-	if ((orig_set_error_handler = (void **)zend_hash_str_find(EG(function_table), "set_error_handler", sizeof("set_error_handler")-1)) != NULL) {
+	if ((orig_set_error_handler = zend_hash_str_find_ptr(EG(function_table), "set_error_handler", sizeof("set_error_handler")-1)) != NULL) {
 		SENTRY_G(orig_set_error_handler) = orig_set_error_handler->internal_function.handler;
 		orig_set_error_handler->internal_function.handler = zif_sentry_set_error_handler;
 	}
-	if ((orig_restore_error_handler = zend_hash_str_find(EG(function_table),"restore_error_handler", sizeof("restore_error_handler") -1 )) != NULL) {
+	if ((orig_restore_error_handler = zend_hash_str_find_ptr(EG(function_table),"restore_error_handler", sizeof("restore_error_handler") -1 )) != NULL) {
 		SENTRY_G(orig_restore_error_handler) = orig_restore_error_handler->internal_function.handler;
 		orig_restore_error_handler->internal_function.handler = zif_sentry_restore_error_handler;
 	}

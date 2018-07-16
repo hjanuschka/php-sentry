@@ -8,7 +8,7 @@ if (!extension_loaded('sentry')) {
 ?>
 --FILE--
 <?php
-$a = sentry_enable_debug(true);
+$;a = sentry_enable_debug(true);
 var_dump($a);
 ?>
 --EXPECT--
