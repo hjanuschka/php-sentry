@@ -1,5 +1,5 @@
 --TEST--
-sentry_test1() Basic test
+Debugg output on userspace request
 --SKIPIF--
 <?php
 if (!extension_loaded('sentry')) {
@@ -24,6 +24,23 @@ class Sentry {
 }
 $a = new Sentry();
 ?>
---EXPECT--
-The extension sentry is loaded and working!
-NULL
+
+--EXPECTF--
+SENTRY PHP-EXT Catched:
+==============
+message: Unkown Exception AAAA catched!
+	Frame(0):
+		file: %s
+		lineo: 7
+		type: 1
+	Frame(1):
+		file: %s
+		lineo: 13
+		class: S1
+		function: test
+	Frame(2):
+		file: %s
+		lineo: 16
+		class: Sentry
+		function: __construct
+/SENTRY PHP-EXT Catched:

@@ -1,5 +1,5 @@
 --TEST--
-sentry_test1() Basic test
+undefined function name, no debug output
 --SKIPIF--
 <?php
 if (!extension_loaded('sentry')) {
@@ -23,6 +23,8 @@ class Sentry {
 }
 $a = new Sentry();
 ?>
---EXPECT--
-The extension sentry is loaded and working!
-NULL
+--EXPECTF--
+Fatal error: Uncaught Error: Call to undefined function err1or_reporting() in %s:2
+Stack trace:
+#0 {main}
+  thrown in %s on line 2

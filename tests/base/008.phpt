@@ -1,5 +1,5 @@
 --TEST--
-sentry_test1() Basic test
+parse error
 --SKIPIF--
 <?php
 if (!extension_loaded('sentry')) {
@@ -11,6 +11,5 @@ if (!extension_loaded('sentry')) {
 $;a = sentry_enable_debug(true);
 var_dump($a);
 ?>
---EXPECT--
-The extension sentry is loaded and working!
-NULL
+--EXPECTF--
+Parse error: syntax error, unexpected ';', expecting variable (T_VARIABLE) or '{' or '$' in %s on line 2

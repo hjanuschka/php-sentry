@@ -116,6 +116,17 @@ PHP_FUNCTION(sentry_set_error_handler)
 	}
 }
 
+int sentry_debugging_enabled() {
+  
+  if(SENTRY_G(debug) == 1) {
+      return 1;
+  }
+  if(INI_BOOL("sentry.debug")) {
+    return 1;
+  }
+  return 0;
+}
+
 /* event must be initialized with MAKE_STD_ZVAL or similar and array_init before sending here */
 void php_sentry_capture_error_ex(zval *event, int type, const char *error_filename, const uint error_lineno, zend_bool free_event, const char *format, va_list args TSRMLS_DC)
 {
@@ -138,7 +149,7 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
 	len = vspprintf(&buffer, PG(log_errors_max_len), format, args_cp);
 	va_end(args_cp);
 
-if(SENTRY_G(debug) == 1) {
+if(sentry_debugging_enabled() == 1) {
 
 	/* Send to backend */
    	php_printf("SENTRY PHP-EXT Catched:\n");
@@ -170,10 +181,10 @@ if(SENTRY_G(debug) == 1) {
 		class = zend_hash_str_find(Z_ARRVAL_P(ele_value), "class", sizeof("class")-1);
 		function = zend_hash_str_find(Z_ARRVAL_P(ele_value), "function", sizeof("function")-1);
 		php_printf("\tFrame(%d):\n", frame);
-		php_printf("\t\t file: %s\n", Z_STRVAL_P(file));
-		php_printf("\t\t lineo: %ld\n", Z_LVAL_P(lineo));
-		php_printf("\t\t class: %s\n", Z_STRVAL_P(class));
-		php_printf("\t\t function: %s\n", Z_STRVAL_P(function));
+		php_printf("\t\tfile: %s\n", Z_STRVAL_P(file));
+		php_printf("\t\tlineo: %ld\n", Z_LVAL_P(lineo));
+		php_printf("\t\tclass: %s\n", Z_STRVAL_P(class));
+		php_printf("\t\tfunction: %s\n", Z_STRVAL_P(function));
 		frame++;
     }
     ZEND_HASH_FOREACH_END();

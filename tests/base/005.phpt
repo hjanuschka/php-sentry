@@ -1,5 +1,5 @@
 --TEST--
-sentry_test1() Basic test
+No Debug output by default
 --SKIPIF--
 <?php
 if (!extension_loaded('sentry')) {
@@ -24,5 +24,5 @@ class Sentry {
 $a = new Sentry();
 ?>
 --EXPECT--
-The extension sentry is loaded and working!
-NULL
+HHHH
+

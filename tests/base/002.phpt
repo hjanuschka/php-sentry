@@ -1,5 +1,5 @@
 --TEST--
-sentry_test1() Basic test
+Disabled by default
 --SKIPIF--
 <?php
 if (!extension_loaded('sentry')) {
@@ -8,10 +8,10 @@ if (!extension_loaded('sentry')) {
 ?>
 --FILE--
 <?php 
-$ret = sentry_test1();
-
-var_dump($ret);
+$ret = notfound();
 ?>
 --EXPECT--
-The extension sentry is loaded and working!
-NULL
+Fatal error: Uncaught Error: Call to undefined function notfound() in /Users/hjanuschka/php-sentry/tests/base/002.php:2
+Stack trace:
+#0 {main}
+  thrown in /Users/hjanuschka/php-sentry/tests/base/002.php on line 2
