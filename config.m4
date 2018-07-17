@@ -25,7 +25,7 @@ if test "$PHP_SENTRY" != "no"; then
 			AC_MSG_RESULT(curl headers found in $PHP_CURL)
 		else
 			AC_MSG_CHECKING(for cURL in default path)
-			for i in /usr/local /usr; do
+			for i in /usr/local /usr /usr/include/x86_64-linux-gnu/; do
 	  		if test -r $i/include/curl/easy.h; then
 					CURL_DIR=$i
 					AC_MSG_RESULT(found in $i)
@@ -34,10 +34,6 @@ if test "$PHP_SENTRY" != "no"; then
 			done
 		fi
 
-	if test -z "$CURL_DIR"; then
-		AC_MSG_RESULT(not found)
-		AC_MSG_ERROR([Please reinstall the libcurl distribution - easy.h should be in <curl-dir>/include/curl/])
-	fi
 
 CURL_CONFIG="curl-config"
 AC_MSG_CHECKING(for cURL 7.15.0 or greater)
