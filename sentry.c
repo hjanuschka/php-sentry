@@ -421,10 +421,16 @@ static const zend_function_entry sentry_functions[] = {
 };
 /* }}} */
 
+static const zend_module_dep sentry_dep_deps[] = {
+    ZEND_MOD_REQUIRED("json")
+    ZEND_MOD_END
+};
+
 /* {{{ sentry_module_entry
  */
 zend_module_entry sentry_module_entry = {
-	STANDARD_MODULE_HEADER,
+	STANDARD_MODULE_HEADER_EX, NULL,
+  sentry_dep_deps,
 	"sentry",					/* Extension name */
 	sentry_functions,			/* zend_function_entry */
 	PHP_MINIT(sentry),							/* PHP_MINIT - Module initialization */

@@ -14,9 +14,11 @@ dnl Otherwise use enable:
 
 PHP_ARG_ENABLE(sentry, whether to enable sentry support,
 dnl Make sure that the comment is aligned:
-[  --enable-sentry          Enable sentry support], no)
+[  --enable-sentry          Enable sentry support], yes)
 
 if test "$PHP_SENTRY" != "no"; then
+
+
 
  	PHP_ARG_WITH(curl, for cURL support, [  --with-curl[=DIR]		SOLR : libcurl install prefix])
 
@@ -88,6 +90,8 @@ fi
   AC_DEFINE(HAVE_SENTRY, 1, [ Have sentry support ])
 
 
-  PHP_NEW_EXTENSION(sentry, sentry.c, $ext_shared)
   PHP_ADD_EXTENSION_DEP(sentry, json)
+  PHP_NEW_EXTENSION(sentry, sentry.c, $ext_shared)
+
+
 fi
