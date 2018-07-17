@@ -16,12 +16,17 @@
 #include "ext/standard/php_var.h"
 #include "zend_exceptions.h"
 
+#include <curl/curl.h>
+
 ZEND_DECLARE_MODULE_GLOBALS(sentry)
 
 
 PHP_INI_BEGIN()
 PHP_INI_ENTRY("sentry.debug", "0", PHP_INI_ALL, NULL)
 PHP_INI_END()
+
+/*CURL DEBUG*/
+/*CURL DEBUG */
 
 /* {{{ string sentry_test2( [ string $var ] )
  */
@@ -42,6 +47,33 @@ PHP_FUNCTION(sentry_enable_debug)
 
 	RETURN_BOOL(value);
 }
+
+PHP_FUNCTION(sentry_send_sample)
+{
+	CURL *curl;
+  CURLcode res;
+	struct curl_slist *chunk = NULL;
+
+	
+	chunk = curl_slist_append(chunk, "X-Sentry-Auth: Sentry sentry_version=7,\nsentry_timestamp=1329096377,\nsentry_key=5938e51a1d9f41ff990136203c127a1a,\nsentry_client=php-sentry/1.0");
+	curl_slist_append(chunk, "Expect:");
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+	curl_easy_setopt(curl, CURLOPT_URL, "https://sentry.krone.at/sentry/api/15/store/");
+  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+	curl_easy_setopt(curl, CURLOPT_POST, 1L);
+
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"hi\" : \"there\"}");
+
+
+  res = curl_easy_perform(curl);
+
+  /* always cleanup */ 
+  curl_easy_cleanup(curl);
+
+}
+
+
 /* }}}*/
 
 
@@ -291,6 +323,7 @@ PHP_MINFO_FUNCTION(sentry)
  */
 static const zend_function_entry sentry_functions[] = {
 	PHP_FE(sentry_enable_debug,		NULL)
+	PHP_FE(sentry_send_sample,		NULL)
 	PHP_FE_END
 };
 /* }}} */
