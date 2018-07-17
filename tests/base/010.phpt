@@ -1,5 +1,5 @@
 --TEST--
-parse error
+Test Static SentryNative class
 --SKIPIF--
 <?php
 if (!extension_loaded('sentry')) {
@@ -8,8 +8,8 @@ if (!extension_loaded('sentry')) {
 ?>
 --FILE--
 <?php
-sentry_send_sample();
-echo "1";
+$a = SentryNative::test();
+var_dump($a);
 ?>
 --EXPECTF--
-1
+string(11) "Hello World"

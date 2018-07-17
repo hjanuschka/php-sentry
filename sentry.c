@@ -21,12 +21,25 @@
 ZEND_DECLARE_MODULE_GLOBALS(sentry)
 
 
+
 PHP_INI_BEGIN()
 PHP_INI_ENTRY("sentry.debug", "0", PHP_INI_ALL, NULL)
 PHP_INI_END()
 
 /*CURL DEBUG*/
 /*CURL DEBUG */
+
+
+PHP_METHOD(SentryNative, test) /* {{{ */
+{
+    RETURN_STRING("Hello World");
+}
+
+zend_class_entry *sentry_class;
+const zend_function_entry sentrynative_functions[] = {
+  PHP_ME(SentryNative, test, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+  PHP_FE_END
+};
 
 /* {{{ string sentry_test2( [ string $var ] )
  */
@@ -50,27 +63,35 @@ PHP_FUNCTION(sentry_enable_debug)
 
 PHP_FUNCTION(sentry_send_sample)
 {
+  
+  return;
 	CURL *curl;
   CURLcode res;
 	struct curl_slist *chunk = NULL;
 
+    curl_global_init(CURL_GLOBAL_ALL);
+    
+   curl = curl_easy_init();
 	
-	chunk = curl_slist_append(chunk, "X-Sentry-Auth: Sentry sentry_version=7,\nsentry_timestamp=1329096377,\nsentry_key=5938e51a1d9f41ff990136203c127a1a,\nsentry_client=php-sentry/1.0");
 	curl_slist_append(chunk, "Expect:");
+  curl_slist_append(chunk, "Accept: */*");
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/7.54.0");
+  curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+  curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
-	curl_easy_setopt(curl, CURLOPT_URL, "https://sentry.krone.at/sentry/api/15/store/");
+	curl_easy_setopt(curl, CURLOPT_URL, "https://sentry.krone.at/api/15/store/?sentry_version=7&sentry_client=raven-js%2F3.26.2&sentry_key=5938e51a1d9f41ff990136203c127a1a");
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 	curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"hi\" : \"there\"}");
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"project\":\"15\",\"logger\":\"javascript\",\"platform\":\"javascript\",\"request\":{\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36\",\"Referer\":\"http://jsfiddle.net/p6GS8/591/\"},\"url\":\"http://fiddle.jshell.net/_display/\"},\"exception\":{\"values\":[{\"type\":\"Error\",\"value\":\"test\",\"stacktrace\":{\"frames\":[{\"filename\":\"http://fiddle.jshell.net/_display/\",\"lineno\":55,\"colno\":9,\"function\":\"?\",\"in_app\":true}]}}],\"mechanism\":{\"type\":\"generic\",\"handled\":true}},\"transaction\":\"http://fiddle.jshell.net/_display/\",\"trimHeadFrames\":0,\"extra\":{\"session:duration\":5},\"event_id\":\"1e28ef657d604828bfad34d595b47efb\"}");
 
 
   res = curl_easy_perform(curl);
 
   /* always cleanup */ 
   curl_easy_cleanup(curl);
-
+  curl_global_cleanup();
 }
 
 
@@ -293,6 +314,10 @@ PHP_GINIT_FUNCTION(sentry)
 PHP_MINIT_FUNCTION(sentry)
 {
     REGISTER_INI_ENTRIES();
+
+    zend_class_entry tmp_ce;
+    INIT_CLASS_ENTRY(tmp_ce, "SentryNative", sentrynative_functions);
+    sentry_class = zend_register_internal_class(&tmp_ce TSRMLS_CC);
 
     return SUCCESS;
 }
