@@ -65,10 +65,10 @@ PHP_FUNCTION(sentry_enable_debug)
 
 void sentry_send_event(zval * event) {
 
-  smart_str  * buff;
+  smart_str   buff = {0};
   php_var_dump(event, 0);
   exit;
-  php_json_encode(buff, event, 0 TSRMLS_CC);
+  php_json_encode(&buff, event, 0 TSRMLS_CC);
 
 
 	CURL *curl;
