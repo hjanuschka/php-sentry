@@ -87,5 +87,6 @@ fi
   dnl # In case of no dependencies
   AC_DEFINE(HAVE_SENTRY, 1, [ Have sentry support ])
 
+  PHP_ADD_EXTENSION_DEP(sentry, json)
   PHP_NEW_EXTENSION(sentry, sentry.c, $ext_shared)
 fi
