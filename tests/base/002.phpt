@@ -7,11 +7,11 @@ if (!extension_loaded('sentry')) {
 }
 ?>
 --FILE--
-<?php 
+<?php
 $ret = notfound();
 ?>
---EXPECT--
-Fatal error: Uncaught Error: Call to undefined function notfound() in /Users/hjanuschka/php-sentry/tests/base/002.php:2
+--EXPECTF--
+Fatal error: Uncaught Error: Call to undefined function notfound() in %s:2
 Stack trace:
 #0 {main}
-  thrown in /Users/hjanuschka/php-sentry/tests/base/002.php on line 2
+  thrown in %s on line 2
