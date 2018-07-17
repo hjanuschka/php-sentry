@@ -10,6 +10,7 @@
 #include "Zend/zend_builtin_functions.h"
 #include "ext/standard/php_string.h"
 #include "zend.h"
+#include "ext/json/php_json.h"
 #include "zend_ini_scanner.h"
 #include "zend_language_scanner.h"
 #include <zend_language_parser.h>
@@ -17,6 +18,7 @@
 #include "zend_exceptions.h"
 
 #include <curl/curl.h>
+#include <time.h>
 
 ZEND_DECLARE_MODULE_GLOBALS(sentry)
 
@@ -61,6 +63,43 @@ PHP_FUNCTION(sentry_enable_debug)
 	RETURN_BOOL(value);
 }
 
+void sentry_send_event(zval * event) {
+
+  smart_str  * buff;
+  php_var_dump(event, 0);
+  exit;
+  php_json_encode(buff, event, 0 TSRMLS_CC);
+
+
+	CURL *curl;
+  CURLcode res;
+	struct curl_slist *chunk = NULL;
+
+    curl_global_init(CURL_GLOBAL_ALL);
+    
+   curl = curl_easy_init();
+	
+	curl_slist_append(chunk, "Expect:");
+  curl_slist_append(chunk, "Accept: */*");
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/7.54.0");
+  curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+  curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+	curl_easy_setopt(curl, CURLOPT_URL, "https://sentry.krone.at/api/15/store/?sentry_version=7&sentry_client=raven-js%2F3.26.2&sentry_key=5938e51a1d9f41ff990136203c127a1a");
+  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+	curl_easy_setopt(curl, CURLOPT_POST, 1L);
+  //curl_easy_setopt(curl, CURLOPT_POSTFIELDS,ZSTR_VAL(buff.s));
+
+
+  res = curl_easy_perform(curl);
+
+  /* always cleanup */ 
+  curl_easy_cleanup(curl);
+  curl_global_cleanup();
+
+
+}
 PHP_FUNCTION(sentry_send_sample)
 {
   
@@ -195,6 +234,9 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
 
 	TSRMLS_FETCH();
 
+	object_init(event);
+
+
 	/* Capture backtrace */
 	zend_fetch_debug_backtrace(&btrace, 0, 0 ,1000);
 
@@ -202,19 +244,41 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
 	len = vspprintf(&buffer, PG(log_errors_max_len), format, args_cp);
 	va_end(args_cp);
 
+
+	if(SENTRY_G(last_exception) && Z_TYPE_P(SENTRY_G(last_exception)) == IS_OBJECT) {
+		default_ce = Z_OBJCE_P(SENTRY_G(last_exception));
+		emsg =    zend_read_property(default_ce, SENTRY_G(last_exception), "message",    sizeof("message")-1,    0 TSRMLS_CC, &rv1);
+    free(buffer);
+		buffer =  Z_STRVAL_P(emsg);
+	}
+
+  time_t timer;
+  char timebuff[100];
+  struct tm* tm_info;
+  time(&timer);
+  tm_info = localtime(&timer);
+  strftime(timebuff, 99, "%Y-%m-%dT%H:%M:%S", tm_info);
+
+  add_property_string(event, "message", buffer);
+  add_property_string(event, "culprit", "HHHHH");
+  add_property_string(event, "time", timebuff);
+
+  zval exception_payload;
+  object_init(&exception_payload);
+  add_property_string(&exception_payload, "type", "SyntaxError");
+  add_property_string(&exception_payload, "value", "waaat");
+  add_property_string(&exception_payload, "module", "___bbb");
+  add_property_zval(event, "exception", &exception_payload);
+
+
 if(sentry_debugging_enabled() == 1) {
 
 	/* Send to backend */
    	php_printf("SENTRY PHP-EXT Catched:\n");
    	php_printf("==============\n");
 
-	if(SENTRY_G(last_exception) && Z_TYPE_P(SENTRY_G(last_exception)) == IS_OBJECT) {
-		default_ce = Z_OBJCE_P(SENTRY_G(last_exception));
-		emsg =    zend_read_property(default_ce, SENTRY_G(last_exception), "message",    sizeof("message")-1,    0 TSRMLS_CC, &rv1);
-		php_printf("message: Unkown Exception %s catched!\n", Z_STRVAL_P(emsg));
-	} else {
-		php_printf("message: %s\n", buffer);
-	}
+
+  php_printf("message: %s\n", buffer);
 	php_printf("\tFrame(0):\n");
 	php_printf("\t\tfile: %s\n", error_filename);
 	php_printf("\t\tlineo: %d\n", error_lineno);
@@ -246,6 +310,9 @@ if(sentry_debugging_enabled() == 1) {
 
 }
 
+  //SEND IT
+  sentry_send_event(event);
+
 	if (free_event) {
 		zval_dtor(event);
 	}
@@ -268,6 +335,7 @@ void php_sentry_capture_error(int type, const char *error_filename, const uint e
 		array_init(&event);
 
 		php_sentry_capture_error_ex(&event, type, error_filename, error_lineno, 1, format, args TSRMLS_CC);
+
 		SENTRY_G(orig_error_cb)(type, error_filename, error_lineno, format, args);
 }
 
