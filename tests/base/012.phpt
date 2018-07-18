@@ -19,6 +19,7 @@ class S1 {
     public function test() {
         echo HHHH;
         echo 1/0;
+        var_dump(SentryClient::last_error_id);
         throw new \Exception("exx");
     }
 }

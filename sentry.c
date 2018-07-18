@@ -144,7 +144,7 @@ void sentry_send_event(zval * event) {
      
 	struct curl_slist *chunk = NULL;
 
-    curl_global_init(CURL_GLOBAL_ALL);
+   curl_global_init(CURL_GLOBAL_ALL);
     
    curl = curl_easy_init();
 	
@@ -163,6 +163,8 @@ void sentry_send_event(zval * event) {
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&output);
 
 
+  zval sentry_response;
+
 
 if(sentry_debugging_enabled() == 1) {
   //printf("###################\n");
@@ -172,6 +174,19 @@ if(sentry_debugging_enabled() == 1) {
 
   res = curl_easy_perform(curl);
 
+
+  php_json_decode(&sentry_response, output.memory, strlen(output.memory), 1, PHP_JSON_PARSER_DEFAULT_DEPTH);
+
+
+  HashTable *hash_arr = Z_ARRVAL(sentry_response);
+  zval * sentry_id;
+  sentry_id = zend_hash_str_find(hash_arr, "id", sizeof("id")-1);
+
+
+  //zend_declare_property_string(sentry_class, "last_error_id", sizeof("last_error_id")-1, Z_STRVAL_P(sentry_id), ZEND_ACC_PUBLIC|ZEND_ACC_STATIC TSRMLS_CC);
+
+
+  //
   //TODO register sentry id in the NativeSentry->get_last_id()
   //php_printf("%s", output.memory);
   /* always cleanup */ 
