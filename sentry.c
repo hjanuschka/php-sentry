@@ -20,6 +20,14 @@
 #include <curl/curl.h>
 #include <time.h>
 
+
+struct MemoryStruct {
+  char *memory;
+  size_t size;
+};
+ 
+
+
 ZEND_DECLARE_MODULE_GLOBALS(sentry)
 
 
@@ -63,6 +71,26 @@ PHP_FUNCTION(sentry_enable_debug)
 	RETURN_BOOL(value);
 }
 
+static size_t
+WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+  size_t realsize = size * nmemb;
+  struct MemoryStruct *mem = (struct MemoryStruct *)userp;
+ 
+  mem->memory = realloc(mem->memory, mem->size + realsize + 1);
+  if(mem->memory == NULL) {
+      /* out of memory! */ 
+      printf("not enough memory (realloc returned NULL)\n");
+      return 0;
+    }
+ 
+  memcpy(&(mem->memory[mem->size]), contents, realsize);
+  mem->size += realsize;
+  mem->memory[mem->size] = 0;
+ 
+  return realsize;
+}
+
 void sentry_send_event(zval * event) {
 
   smart_str   buff = {0};
@@ -72,6 +100,7 @@ void sentry_send_event(zval * event) {
 
 	CURL *curl;
   CURLcode res;
+  struct MemoryStruct output;
 	struct curl_slist *chunk = NULL;
 
     curl_global_init(CURL_GLOBAL_ALL);
@@ -84,16 +113,17 @@ void sentry_send_event(zval * event) {
   curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
   curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
-	curl_easy_setopt(curl, CURLOPT_URL, "https://sentry.krone.at/api/15/store/?sentry_version=7&sentry_client=raven-js%2F3.26.2&sentry_key=5938e51a1d9f41ff990136203c127a1a");
+	curl_easy_setopt(curl, CURLOPT_URL, "https://sentry.krone.at/api/15/store/?sentry_version=7&sentry_client=php-sentry-native%2F1.0&sentry_key=5938e51a1d9f41ff990136203c127a1a");
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 0);
 	curl_easy_setopt(curl, CURLOPT_POST, 1L);
   curl_easy_setopt(curl, CURLOPT_POSTFIELDS,ZSTR_VAL(buff.s));
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&output);
 
-  printf("###################\n");
-  printf("%s\n", ZSTR_VAL(buff.s));
-  printf("###################\n");
-  exit;
+  //printf("###################\n");
+  //printf("%s\n", ZSTR_VAL(buff.s));
+  //printf("###################\n");
+  //exit;
 
 
   res = curl_easy_perform(curl);
@@ -317,7 +347,7 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
   char timebuff[100];
   struct tm* tm_info;
   time(&timer);
-  tm_info = localtime(&timer);
+  tm_info = gmtime(&timer);
   strftime(timebuff, 99, "%Y-%m-%dT%H:%M:%S", tm_info);
 
   char culprit[1024];
@@ -329,12 +359,29 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
   //  release
   //  dist
   //  tags
+  //  contexts
+      // runtime
+
+
+  zval contexts;
+  zval runtime;
+  object_init(&runtime);
+  object_init(&contexts);
+
+  add_property_string(&runtime, "name", "php");
+  add_property_string(&runtime, "version", PHP_VERSION); 
+  add_property_string(&runtime, "type", "runtime"); 
+
+  add_property_zval(&contexts,"runtime", &runtime);
+  add_property_zval(event,"contexts", &contexts);
+
+  
 
 
   add_property_string(event, "message", buffer);
   add_property_string(event, "culprit", culprit);
-  add_property_string(event, "platform", "php-native");
-  add_property_string(event, "time", timebuff);
+  add_property_string(event, "platform", "php");
+  add_property_string(event, "timestamp", timebuff);
 
   char * etype;
   etype = php_error_type_to_char(type);
@@ -380,7 +427,7 @@ if(sentry_debugging_enabled() == 1) {
 	if(SENTRY_G(last_exception) && Z_TYPE_P(SENTRY_G(last_exception)) == IS_OBJECT) {
 		default_ce = Z_OBJCE_P(SENTRY_G(last_exception));
 		trace =    zend_read_property(default_ce, SENTRY_G(last_exception), "trace",    sizeof("trace")-1,    0 TSRMLS_CC, &rv);
-		hash_arr = Z_ARRVAL_P(trace);
+		//hash_arr = Z_ARRVAL_P(trace);
 
 	}
 	ZEND_HASH_REVERSE_FOREACH_VAL_IND(hash_arr,  ele_value) {
