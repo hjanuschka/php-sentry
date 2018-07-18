@@ -31,6 +31,7 @@ ZEND_BEGIN_MODULE_GLOBALS(sentry)
 	zend_stack user_error_handler_levels;	/* the levels the user error handler handles */
 
 	zval user_error_handler;	/* the current active user error handler */
+  zval breadcrumbs;
 	zval * last_exception;
 	int debug;
 

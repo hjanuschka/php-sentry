@@ -45,9 +45,47 @@ PHP_METHOD(SentryNative, test) /* {{{ */
     RETURN_STRING("Hello World");
 }
 
+PHP_METHOD(SentryNative, addBreadCrumb) /* {{{ */
+{
+    zval * message;
+    zval * category;
+    ZEND_PARSE_PARAMETERS_START(2,2)
+      Z_PARAM_ZVAL(message)
+      Z_PARAM_ZVAL(category)   
+    ZEND_PARSE_PARAMETERS_END(); 
+
+
+     time_t ctimer;
+     zval crumb;
+     char ctimebuff[100];
+     struct tm* ctm_info;
+     time(&ctimer);
+     ctm_info = gmtime(&ctimer);
+     strftime(ctimebuff, 99, "%Y-%m-%dT%H:%M:%S", ctm_info);
+
+
+     object_init(&crumb);
+
+
+
+    convert_to_string(message);
+    convert_to_string(category);
+
+     add_property_string(&crumb, "timestamp", ctimebuff);
+     add_property_string(&crumb, "message", Z_STRVAL_P(message));
+     add_property_string(&crumb, "category", Z_STRVAL_P(category));
+     add_next_index_zval(&SENTRY_G(breadcrumbs), &crumb);
+ 
+
+    RETURN_STRING("Hello World");
+}
+
+
+
 zend_class_entry *sentry_class;
 const zend_function_entry sentrynative_functions[] = {
   PHP_ME(SentryNative, test, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+  PHP_ME(SentryNative, addBreadCrumb, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
   PHP_FE_END
 };
 
@@ -124,11 +162,13 @@ void sentry_send_event(zval * event) {
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&output);
 
+
+
+if(sentry_debugging_enabled() == 1) {
   //printf("###################\n");
   //printf("%s\n", ZSTR_VAL(buff.s));
   //printf("###################\n");
-  //exit;
-
+}
 
   res = curl_easy_perform(curl);
 
@@ -492,7 +532,36 @@ if(sentry_debugging_enabled() == 1) {
   add_property_zval(event, "stacktrace", &stacktrace);
 
   //SEND IT
-  sentry_send_event(event);
+  if(type == E_DEPRECATED || 
+     type == E_WARNING    ||
+     type == E_NOTICE) {
+     zval crumb;
+     time_t ctimer;
+     char ctimebuff[100];
+     struct tm* ctm_info;
+     time(&ctimer);
+     ctm_info = gmtime(&ctimer);
+     strftime(ctimebuff, 99, "%Y-%m-%dT%H:%M:%S", ctm_info);
+
+
+     zval crumb_data;
+     object_init(&crumb_data);
+
+     add_property_long(&crumb_data, "line", error_lineno);
+     add_property_string(&crumb_data, "file", error_filename);
+
+
+
+     object_init(&crumb);
+     add_property_string(&crumb, "timestamp", ctimebuff);
+     add_property_string(&crumb, "message", buffer);
+     add_property_string(&crumb, "category", "error_reporting");
+     add_property_zval(&crumb, "data", &crumb_data);
+     add_next_index_zval(&SENTRY_G(breadcrumbs), &crumb);
+  } else {
+    add_property_zval(event, "breadcrumbs", &SENTRY_G(breadcrumbs));
+    sentry_send_event(event);
+  }
 
 	if (free_event) {
 		zval_dtor(event);
@@ -565,8 +634,9 @@ PHP_MINIT_FUNCTION(sentry)
     REGISTER_INI_ENTRIES();
 
     zend_class_entry tmp_ce;
-    INIT_CLASS_ENTRY(tmp_ce, "SentryNative", sentrynative_functions);
+    INIT_CLASS_ENTRY(tmp_ce, "Sentry\\Client\\Native", sentrynative_functions);
     sentry_class = zend_register_internal_class(&tmp_ce TSRMLS_CC);
+    array_init(&SENTRY_G(breadcrumbs));
 
     return SUCCESS;
 }

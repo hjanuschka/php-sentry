@@ -8,6 +8,7 @@ if (!extension_loaded('sentry')) {
 ?>
 --FILE--
 <?php
+use \Sentry\Client\Native as SentryNative;
 $a = SentryNative::test();
 var_dump($a);
 ?>
