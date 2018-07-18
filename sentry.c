@@ -66,9 +66,8 @@ PHP_FUNCTION(sentry_enable_debug)
 void sentry_send_event(zval * event) {
 
   smart_str   buff = {0};
-  php_var_dump(event, 0);
-  exit;
-  php_json_encode(&buff, event, 0 TSRMLS_CC);
+  int options = PHP_JSON_PRETTY_PRINT;
+  php_json_encode(&buff, event, options TSRMLS_CC);
 
 
 	CURL *curl;
@@ -89,7 +88,12 @@ void sentry_send_event(zval * event) {
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 	curl_easy_setopt(curl, CURLOPT_POST, 1L);
-  //curl_easy_setopt(curl, CURLOPT_POSTFIELDS,ZSTR_VAL(buff.s));
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS,ZSTR_VAL(buff.s));
+
+  printf("###################\n");
+  printf("%s\n", ZSTR_VAL(buff.s));
+  printf("###################\n");
+  exit;
 
 
   res = curl_easy_perform(curl);
@@ -219,6 +223,63 @@ int sentry_debugging_enabled() {
   return 0;
 }
 
+char * php_error_type_to_char(type) {
+      char *error_type_str;
+      switch (type) {
+        case E_ERROR:
+        case E_CORE_ERROR:
+        case E_COMPILE_ERROR:
+        case E_USER_ERROR:
+          error_type_str = "Fatal error";
+          break;
+        case E_RECOVERABLE_ERROR:
+          error_type_str = "Recoverable fatal error";
+          break;
+        case E_WARNING:
+        case E_CORE_WARNING:
+        case E_COMPILE_WARNING:
+        case E_USER_WARNING:
+          error_type_str = "Warning";
+          break;
+        case E_PARSE:
+          error_type_str = "Parse error";
+          break;
+        case E_NOTICE:
+        case E_USER_NOTICE:
+          error_type_str = "Notice";
+          break;
+        case E_STRICT:
+          error_type_str = "Strict Standards";
+          break;
+        case E_DEPRECATED:
+        case E_USER_DEPRECATED:
+          error_type_str = "Deprecated";
+          break;
+        default:
+          error_type_str = "Unknown error";
+          break;
+      }
+      return error_type_str;
+}
+
+char * get_line_of_file(const char * file, int line) {
+  char * response = malloc(sizeof(char)*1024);
+  FILE* fh = fopen(file, "r");
+  if(!fh) {
+    return NULL;
+  }
+  char current_line[1024];
+  int linnr=1;
+  while(fgets(current_line, sizeof(current_line), fh)) {
+    if(linnr == line) {
+      snprintf(response, 1024, "%s", current_line);
+      break;
+    }
+    linnr++;
+  }
+  return response;
+}
+
 /* event must be initialized with MAKE_STD_ZVAL or similar and array_init before sending here */
 void php_sentry_capture_error_ex(zval *event, int type, const char *error_filename, const uint error_lineno, zend_bool free_event, const char *format, va_list args TSRMLS_DC)
 {
@@ -259,16 +320,45 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
   tm_info = localtime(&timer);
   strftime(timebuff, 99, "%Y-%m-%dT%H:%M:%S", tm_info);
 
+  char culprit[1024];
+  //TODO: get filename + method (if exception)
+  snprintf(culprit, 1024, "%s:%d", error_filename, error_lineno);
+
+  //TODO
+  // add 
+  //  release
+  //  dist
+  //  tags
+
+
   add_property_string(event, "message", buffer);
-  add_property_string(event, "culprit", "HHHHH");
+  add_property_string(event, "culprit", culprit);
+  add_property_string(event, "platform", "php-native");
   add_property_string(event, "time", timebuff);
 
+  char * etype;
+  etype = php_error_type_to_char(type);
   zval exception_payload;
   object_init(&exception_payload);
-  add_property_string(&exception_payload, "type", "SyntaxError");
-  add_property_string(&exception_payload, "value", "waaat");
-  add_property_string(&exception_payload, "module", "___bbb");
+  add_property_string(&exception_payload, "type", etype);
+  add_property_string(&exception_payload, "value", buffer);
   add_property_zval(event, "exception", &exception_payload);
+
+  zval stacktrace;
+  zval frames;
+  zval frame0;
+  char * frame0_line;
+
+
+
+  object_init(&stacktrace);
+  array_init(&frames);
+  object_init(&frame0);
+
+  
+
+  
+
 
 
 if(sentry_debugging_enabled() == 1) {
@@ -284,31 +374,69 @@ if(sentry_debugging_enabled() == 1) {
 	php_printf("\t\tlineo: %d\n", error_lineno);
 	php_printf("\t\ttype: %d\n", type);
 
+}
 
     HashTable *hash_arr = Z_ARRVAL(btrace);
 	if(SENTRY_G(last_exception) && Z_TYPE_P(SENTRY_G(last_exception)) == IS_OBJECT) {
 		default_ce = Z_OBJCE_P(SENTRY_G(last_exception));
 		trace =    zend_read_property(default_ce, SENTRY_G(last_exception), "trace",    sizeof("trace")-1,    0 TSRMLS_CC, &rv);
 		hash_arr = Z_ARRVAL_P(trace);
+
 	}
-	ZEND_HASH_FOREACH_VAL(hash_arr,  ele_value) {
+	ZEND_HASH_REVERSE_FOREACH_VAL_IND(hash_arr,  ele_value) {
 		zval * file, * lineo, *function, *class;
 		file = zend_hash_str_find(Z_ARRVAL_P(ele_value), "file", sizeof("file")-1);
 		lineo = zend_hash_str_find(Z_ARRVAL_P(ele_value), "line", sizeof("line")-1);
 		class = zend_hash_str_find(Z_ARRVAL_P(ele_value), "class", sizeof("class")-1);
 		function = zend_hash_str_find(Z_ARRVAL_P(ele_value), "function", sizeof("function")-1);
-		php_printf("\tFrame(%d):\n", frame);
-		php_printf("\t\tfile: %s\n", Z_STRVAL_P(file));
-		php_printf("\t\tlineo: %ld\n", Z_LVAL_P(lineo));
-		php_printf("\t\tclass: %s\n", Z_STRVAL_P(class));
-		php_printf("\t\tfunction: %s\n", Z_STRVAL_P(function));
-		frame++;
+
+    zval current_frame;
+    object_init(&current_frame);
+
+    char * current_frame_line = get_line_of_file(Z_STRVAL_P(file),Z_LVAL_P(lineo));
+    add_property_string(&current_frame, "abs_path", Z_STRVAL_P(file));
+    add_property_string(&current_frame, "filename", Z_STRVAL_P(file));
+    add_property_string(&current_frame, "function", Z_STRVAL_P(function));
+    add_property_long(&current_frame, "lineno", Z_LVAL_P(lineo));
+    add_property_string(&current_frame, "context_line", current_frame_line);
+    free(current_frame_line);
+
+    add_next_index_zval(&frames, &current_frame);
+ 
+
+    if(sentry_debugging_enabled() == 1) {
+		  php_printf("\tFrame(%d):\n", frame);
+		  php_printf("\t\tfile: %s\n", Z_STRVAL_P(file));
+	  	php_printf("\t\tlineo: %ld\n", Z_LVAL_P(lineo));
+		  php_printf("\t\tclass: %s\n", Z_STRVAL_P(class));
+		  php_printf("\t\tfunction: %s\n", Z_STRVAL_P(function));
+
     }
-    ZEND_HASH_FOREACH_END();
+		frame++;
+  }
+  ZEND_HASH_FOREACH_END();
 
+
+if(sentry_debugging_enabled() == 1) {
    	php_printf("/SENTRY PHP-EXT Catched:\n");
-
 }
+
+
+
+  frame0_line = get_line_of_file(error_filename, error_lineno);
+  add_property_string(&frame0, "abs_path", error_filename);
+  add_property_string(&frame0, "filename", error_filename);
+  add_property_string(&frame0, "function", "main1");
+  add_property_long(&frame0, "lineno", error_lineno);
+  add_property_string(&frame0, "context_line", frame0_line);
+  free(frame0_line);
+
+  add_next_index_zval(&frames, &frame0);
+
+
+
+  add_property_zval(&stacktrace, "frames", &frames);
+  add_property_zval(event, "stacktrace", &stacktrace);
 
   //SEND IT
   sentry_send_event(event);
