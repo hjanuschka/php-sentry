@@ -101,6 +101,9 @@ void sentry_send_event(zval * event) {
 	CURL *curl;
   CURLcode res;
   struct MemoryStruct output;
+  output.memory = malloc(1);  /* will be grown as needed by the realloc above */ 
+  output.size = 0;    /* no data at this point */ 
+     
 	struct curl_slist *chunk = NULL;
 
     curl_global_init(CURL_GLOBAL_ALL);
@@ -118,6 +121,7 @@ void sentry_send_event(zval * event) {
 	curl_easy_setopt(curl, CURLOPT_VERBOSE, 0);
 	curl_easy_setopt(curl, CURLOPT_POST, 1L);
   curl_easy_setopt(curl, CURLOPT_POSTFIELDS,ZSTR_VAL(buff.s));
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&output);
 
   //printf("###################\n");
@@ -128,6 +132,8 @@ void sentry_send_event(zval * event) {
 
   res = curl_easy_perform(curl);
 
+  //TODO register sentry id in the NativeSentry->get_last_id()
+  //php_printf("%s", output.memory);
   /* always cleanup */ 
   curl_easy_cleanup(curl);
   curl_global_cleanup();
@@ -339,7 +345,7 @@ void php_sentry_capture_error_ex(zval *event, int type, const char *error_filena
 	if(SENTRY_G(last_exception) && Z_TYPE_P(SENTRY_G(last_exception)) == IS_OBJECT) {
 		default_ce = Z_OBJCE_P(SENTRY_G(last_exception));
 		emsg =    zend_read_property(default_ce, SENTRY_G(last_exception), "message",    sizeof("message")-1,    0 TSRMLS_CC, &rv1);
-    free(buffer);
+    //free(buffer);
 		buffer =  Z_STRVAL_P(emsg);
 	}
 
@@ -427,7 +433,7 @@ if(sentry_debugging_enabled() == 1) {
 	if(SENTRY_G(last_exception) && Z_TYPE_P(SENTRY_G(last_exception)) == IS_OBJECT) {
 		default_ce = Z_OBJCE_P(SENTRY_G(last_exception));
 		trace =    zend_read_property(default_ce, SENTRY_G(last_exception), "trace",    sizeof("trace")-1,    0 TSRMLS_CC, &rv);
-		//hash_arr = Z_ARRVAL_P(trace);
+		hash_arr = Z_ARRVAL_P(trace);
 
 	}
 	ZEND_HASH_REVERSE_FOREACH_VAL_IND(hash_arr,  ele_value) {

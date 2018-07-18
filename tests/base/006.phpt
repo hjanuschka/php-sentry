@@ -24,23 +24,22 @@ class Sentry {
 }
 $a = new Sentry();
 ?>
-
 --EXPECTF--
 SENTRY PHP-EXT Catched:
 ==============
-message: Unkown Exception AAAA catched!
+message: AAAA
 	Frame(0):
 		file: %s
 		lineo: 7
 		type: 1
 	Frame(1):
 		file: %s
-		lineo: 13
-		class: S1
-		function: test
-	Frame(2):
-		file: %s
 		lineo: 16
 		class: Sentry
 		function: __construct
+	Frame(2):
+		file: %s
+		lineo: 13
+		class: S1
+		function: test
 /SENTRY PHP-EXT Catched:

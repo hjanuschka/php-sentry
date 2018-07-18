@@ -26,7 +26,22 @@ class Sentry {
 $a = new Sentry();
 ?>
 --EXPECTF--
-Fatal error: Uncaught Error: Call to undefined function err1or_reporting() in %s:2
-Stack trace:
-#0 {main}
-  thrown in %s on line 2
+SENTRY PHP-EXT Catched:
+==============
+message: Use of undefined constant HHHH - assumed 'HHHH'
+	Frame(0):
+		file: %s
+		lineo: 6
+		type: 8
+	Frame(1):
+		file: %s
+		lineo: 15
+		class: Sentry
+		function: __construct
+	Frame(2):
+		file: %s
+		lineo: 12
+		class: S1
+		function: test
+/SENTRY PHP-EXT Catched:
+HHHH
