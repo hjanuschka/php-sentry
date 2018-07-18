@@ -4,6 +4,7 @@ chained exception
 <?php
 if (!extension_loaded('sentry')) {
 	echo 'skip';
+  //https://github.com/fengxu0824/dlog/blob/826f8fb2cf1c6f9d49d758cde869cca7e6faffc3/dlog.c
 }
 ?>
 --INI--
